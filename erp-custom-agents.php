@@ -35,9 +35,8 @@ if ( !defined( 'ABSPATH' ) ) exit;
 /**
  * Main initiation class
  */
-include( dirname( __FILE__ ) . '/lib/requirements-check.php' );
 
-class Erp_Custom_Agents {
+class ERP_Custom_Agents {
 
 	public $version = '1.0.0';
 
@@ -52,19 +51,25 @@ class Erp_Custom_Agents {
 
 		register_activation_hook( __FILE__, array( $this, 'activate' ) );
 		register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
-		add_action( 'admin_init', array( $this, 'admin_hooks' ) );
 		add_action( 'init', [ $this, 'localization_setup' ] );
-		$this->define_constants();
-		$this->includes();
-		add_action('wp_enqueue_scripts', [$this, 'load_assets']);
+		// Make sure both ERP and EDD is loaded before initialize
+		add_action( 'erp_loaded', [ $this, 'after_erp_loaded' ] );
+		//add_action('wp_enqueue_scripts', [$this, 'load_assets']);
 	}
 
 	/**
 	 * Activate the plugin
 	 */
 	function activate() {
-		// Make sure any rewrite functionality has been loaded
-		flush_rewrite_rules();
+		if ( ! class_exists( 'WeDevs_ERP' ) ) {
+			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+			deactivate_plugins( plugin_basename( __FILE__ ) );
+			wp_die( sprintf(
+				__( 'You need to install %s in order to use %s', 'erp-edd' ),
+				'<a href="https://wordpress.org/plugins/erp/" target="_blank"><strong>WP ERP</strong></a>',
+				'<strong>WP ERP - Agent Roles</strong>'
+			) );
+		}
 	}
 
 	/**
@@ -91,21 +96,16 @@ class Erp_Custom_Agents {
 
 
 	/**
-	 * Hooks for the Admin
-	 * @since  0.1.0
-	 * @return null
+	 * Executes after ERP loads
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
 	 */
-	public function admin_hooks() {
-
-	}
-
-	/**
-	 * Include a file from the includes directory
-	 * @since  0.1.0
-	 * @param  string $filename Name of the file to be included
-	 */
-	public function includes( ) {
-		require ERPCA_INCLUDES .'/functions.php';
+	public function after_erp_loaded() {
+		$this->define_constants();
+		$this->includes();
+		//$this->class_instances();
 	}
 
 
@@ -125,6 +125,30 @@ class Erp_Custom_Agents {
 		define( 'ERPCA_ASSETS', ERPCA_URL . '/assets' );
 		define( 'ERPCA_VIEWS', ERPCA_PATH . '/views' );
 		define( 'ERPCA_TEMPLATES_DIR', ERPCA_PATH . '/templates' );
+		define( 'ERPCA_MODULES', ERPCA_PATH . '/modules' );
+	}
+
+
+	/**
+	 * Include a file from the includes directory
+	 * @since  0.1.0
+	 * @param  string $filename Name of the file to be included
+	 */
+	public function includes( ) {
+		require ERPCA_INCLUDES .'/functions.php';
+		require ERPCA_INCLUDES .'/add-roles.php';
+		require ERPCA_INCLUDES .'/class-user-update.php';
+		require_once( ABSPATH . "wp-includes/pluggable.php" );
+		if(is_user_logged_in()){
+			$roles = erpc_get_user_roles(get_current_user_id());
+
+			if(in_array(erpca_get_leave_agent_role(), $roles)){
+				require ERPCA_INCLUDES .'/class-leave-request-list-table.php';
+				require ERPCA_MODULES .'/class-leave.php';
+			}
+
+
+		}
 	}
 
 	
@@ -145,20 +169,7 @@ class Erp_Custom_Agents {
 
 
 
-	/**
-	 * Display an error message if WP ERP is not active
-	 *
-	 * @since 1.0.0
-	 *
-	 * @return void
-	 */
-	public function admin_notice($type='error', $message) {
-		printf(
-			'%s'. __( $message, 'erp_custom_agents' ) . '%s',
-			'<div class="message '.$type.'"><p>',
-			'</p></div>'
-		);
-	}
+
 
 
 
@@ -167,12 +178,12 @@ class Erp_Custom_Agents {
 }
 
 // init our class
-$GLOBALS['Erp_Custom_Agents'] = new Erp_Custom_Agents();
+$GLOBALS['ERP_Custom_Agents'] = new ERP_Custom_Agents();
 
 /**
- * Grab the $Erp_Custom_Agents object and return it
+ * Grab the $ERP_Custom_Agents object and return it
  */
 function erp_custom_agents() {
-	global $Erp_Custom_Agents;
-	return $Erp_Custom_Agents;
+	global $ERP_Custom_Agents;
+	return $ERP_Custom_Agents;
 }
