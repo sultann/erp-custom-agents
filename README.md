@@ -1,5 +1,5 @@
 # ERP Custom Agents #
-**Contributors:**      WebDevStudios  
+**Contributors:**      MD Sultan Nasir Uddin  
 **Donate link:**         
 **Tags:**  
 **Requires at least:** 3.6.0  
