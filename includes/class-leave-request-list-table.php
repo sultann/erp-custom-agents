@@ -7,6 +7,7 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
 
     private $counts = array();
     private $page_status;
+    private $user_roles;
 
     function __construct() {
         global $status, $page;
@@ -19,7 +20,7 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
 
         $this->table_css();
 
-
+        $this->user_roles = erpca_get_user_roles(get_current_user_id());
     }
 
     /**
@@ -107,7 +108,6 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
      */
     function get_columns() {
         $columns = array(
-            'cb'        => '<input type="checkbox" />',
             'name'      => __( 'Employee Name', 'erp' ),
             'policy'    => __( 'Leave Policy', 'erp' ),
             'from_date' => __( 'From Date', 'erp' ),
@@ -121,6 +121,7 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
         if ( isset( $_GET['status'] ) && $_GET['status'] == 3 ) {
             $columns['comment'] =  __( 'Reject Reason', 'erp' );
         }
+
         return $columns;
     }
 
@@ -132,7 +133,7 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
      * @return string
      */
     function column_name( $item ) {
-        $tpl         = '?page=erp-leave&leave_action=%s&id=%d';
+        $tpl         = '?page=erp-leave-extended&leave_action=%s&id=%d';
         $nonce       = 'erp-hr-leave-req-nonce';
         $actions     = array();
 
@@ -144,62 +145,37 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
             $actions['delete'] = sprintf( '<a href="%s">%s</a>', $delete_url, __( 'Delete', 'erp' ) );
         }
 
-        if ( $item->status == '2' ) {
 
-            $actions['reject']   = sprintf( '<a class="erp-hr-leave-reject-btn" data-id="%s" href="%s">%s</a>', $item->id, $reject_url, __( 'Reject', 'erp' ) );
-            $actions['approved'] = sprintf( '<a href="%s">%s</a>', $approve_url, __( 'Approve', 'erp' ) );
 
-        } elseif ( $item->status == '1' ) {
 
-            $actions['pending'] = sprintf( '<a href="%s">%s</a>', $pending_url, __( 'Mark Pending', 'erp' ) );
+		if(in_array(erpca_get_leave_agent_role(), $this->user_roles)){
+			if ( $item->status == '11') {
+				$actions['reject']   = sprintf( '<a class="erp-hr-leave-reject-btn" data-id="%s" href="%s">%s</a>', $item->id, $reject_url, __( 'Reject', 'erp' ) );
+				$actions['approved'] = sprintf( '<a href="%s">%s</a>', $approve_url, __( 'Approve', 'erp' ) );
 
-        } elseif ( $item->status == '3') {
-            $actions['approved'] = sprintf( '<a href="%s">%s</a>', $approve_url, __( 'Approve', 'erp' ) );
-        }
+			}elseif($item->status == '3'){
+				$actions['pending'] = sprintf( '<a href="%s">%s</a>', $pending_url, __( 'Mark Pending', 'erp' ) );
+			}
+		}elseif(in_array(erp_hr_get_manager_role(), $this->user_roles)){
+			if ( $item->status == '12' ) {
+
+				$actions['reject']   = sprintf( '<a class="erp-hr-leave-reject-btn" data-id="%s" href="%s">%s</a>', $item->id, $reject_url, __( 'Reject', 'erp' ) );
+				$actions['approved'] = sprintf( '<a href="%s">%s</a>', $approve_url, __( 'Approve', 'erp' ) );
+
+			}
+		}else{
+			if ( $item->status == '13' ) {
+
+				$actions['reject']   = sprintf( '<a class="erp-hr-leave-reject-btn" data-id="%s" href="%s">%s</a>', $item->id, $reject_url, __( 'Reject', 'erp' ) );
+				$actions['approved'] = sprintf( '<a href="%s">%s</a>', $approve_url, __( 'Approve', 'erp' ) );
+
+			}
+		}
 
         return sprintf( '<a href="%3$s"><strong>%1$s</strong></a> %2$s', $item->display_name, $this->row_actions( $actions ), erp_hr_url_single_employee( $item->user_id ) );
     }
 
-    /**
-     * Set the bulk actions
-     *
-     * @return array
-     */
-    function get_bulk_actions() {
-        if ( erp_get_option( 'erp_debug_mode', 'erp_settings_general', 0 ) ) {
-            $actions['delete'] = __( 'Delete', 'erp' );
-        }
 
-        if ( $this->page_status == '2' ) {
-            $actions['reject']   = __( 'Reject', 'erp' );
-            $actions['approved'] = __( 'Approve', 'erp' );
-        } elseif ( $this->page_status == '1' ) {
-            $actions['pending'] = __( 'Mark Pending', 'erp' );
-            $actions['reject']   = __( 'Reject', 'erp' );
-        } elseif ( $this->page_status == '3') {
-            $actions['approved'] = __( 'Approve', 'erp' );
-            $actions['pending'] = __( 'Mark Pending', 'erp' );
-        } else {
-            $actions['reject']   = __( 'Reject', 'erp' );
-            $actions['approved'] = __( 'Approve', 'erp' );
-            $actions['pending'] = __( 'Mark Pending', 'erp' );
-        }
-
-        return $actions;
-    }
-
-    /**
-     * Render the checkbox column
-     *
-     * @param  object  $item
-     *
-     * @return string
-     */
-    function column_cb( $item ) {
-        return sprintf(
-            '<input type="checkbox" name="request_id[]" value="%s" />', $item->id
-        );
-    }
 
     /**
      * Set the views
@@ -208,8 +184,8 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
      */
     public function get_views() {
         $status_links   = array();
-        $base_link      = admin_url( 'admin.php?page=erp-leave' );
-
+        $base_link      = admin_url( 'admin.php?page=erp-leave-extended' );
+		var_dump($this->counts);
         foreach ($this->counts as $key => $value) {
             $class = ( $key == $this->page_status ) ? 'current' : 'status-' . $key;
             $status_links[ $key ] = sprintf( '<a href="%s" class="%s">%s <span class="count">(%s)</span></a>', add_query_arg( array( 'status' => $key ), $base_link ), $class, $value['label'], $value['count'] );
@@ -233,25 +209,27 @@ class ERPC_Leave_Requests_List_Table extends \WP_List_Table {
         $per_page              = 20;
         $current_page          = $this->get_pagenum();
         $offset                = ( $current_page -1 ) * $per_page;
-        $this->page_status     = isset( $_GET['status'] ) ? sanitize_text_field( $_GET['status'] ) : '11';
+        $this->page_status     = isset( $_GET['status'] ) ? sanitize_text_field( $_GET['status'] ) : erpa_get_leave_request_codes_by_role();
 
         // only necessary because we have sample data
         $args = array(
             'offset'  => $offset,
-            'number'  => $per_page,
-            'status'  => $this->page_status,
+            'number'  => -1,
+            'status'  => erpa_get_leave_request_codes_by_role(),
             'year'    => '',
             'orderby' => isset( $_GET['orderby'] ) ? $_GET['orderby'] : 'created_on',
             'order'   => isset( $_GET['order'] ) ? $_GET['order'] : 'DESC',
         );
 
-        $this->counts = erp_hr_leave_get_requests_count();
-        $this->items  = erp_hr_get_leave_requests( $args );
+        var_dump($args);
 
-        $this->set_pagination_args( array(
-            'total_items' => $this->counts[ $this->page_status ]['count'],
-            'per_page'    => $per_page
-        ) );
+        $this->counts = erpc_hr_leave_get_requests_count();
+        $this->items  = erpc_hr_get_leave_requests( $args );
+
+//        $this->set_pagination_args( array(
+//            'total_items' => $this->counts[ $this->page_status ]['count'],
+//            'per_page'    => $per_page
+//        ) );
     }
 
 }

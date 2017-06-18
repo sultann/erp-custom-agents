@@ -48,7 +48,6 @@ class ERP_Custom_Agents {
 	 * @since  0.1.0
 	 */
 	public function __construct() {
-
 		register_activation_hook( __FILE__, array( $this, 'activate' ) );
 		register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
 		add_action( 'init', [ $this, 'localization_setup' ] );
@@ -141,8 +140,10 @@ class ERP_Custom_Agents {
 		require_once( ABSPATH . "wp-includes/pluggable.php" );
 		if(is_user_logged_in()){
 			$roles = erpc_get_user_roles(get_current_user_id());
+			$custom_roles = [erpca_get_leave_agent_role(),erpca_get_general_manager_role(), erp_hr_get_manager_role()];
 
-			if(in_array(erpca_get_leave_agent_role(), $roles)){
+			if((count(array_intersect($custom_roles, $roles)) > 0) && (!in_array('administrator', $roles))){
+				require ERPCA_INCLUDES .'/leave-functions.php';
 				require ERPCA_INCLUDES .'/class-leave-request-list-table.php';
 				require ERPCA_MODULES .'/class-leave.php';
 			}

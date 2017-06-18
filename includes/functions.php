@@ -12,7 +12,7 @@ add_action( 'erp_hr_leave_new', 'create_leave_entry_action', 10,1 );
 
 // remove this from erm/modules/hrm/includes/classajax.php
 //		add_action( 'wp_ajax_erp-hr-leave-req-new', [$this, 'leave_request'] );
-add_action( 'erp_new_leave_request_notification_recipients', 'send_leave_request_email_to_leave_agent', 10,1 );
+
 
 
 function create_leave_entry_action($request_id){
@@ -42,7 +42,7 @@ function send_leave_request_email_to_leave_agent($recipients){
 	$recipients = wp_list_pluck($users, 'user_email');
 	return $recipients;
 }
-
+//add_action( 'erp_new_leave_request_notification_recipients', 'send_leave_request_email_to_leave_agent', 10,1 );
 
 function erpc_hr_leave_request_get_statuses($status){
 	if($status == 11){
@@ -54,4 +54,19 @@ function erpc_hr_leave_request_get_statuses($status){
 	}else{
 		erp_hr_leave_request_get_statuses($status);
 	}
+}
+
+
+function erpc_hr_leave_request_get_pending_code($id){
+	$roles = erpc_get_user_roles($id);
+	$code = 2;
+	if(in_array(erpca_get_leave_agent_role(), $roles)){
+		$code = 11;
+	}elseif (in_array(erp_hr_get_manager_role(), $roles)){
+		$code = 12;
+	}elseif (in_array(erpca_get_general_manager_role(), $roles)){
+		$code = 13;
+	}
+
+	return $code;
 }
