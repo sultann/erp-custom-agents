@@ -70,7 +70,10 @@ function erpca_get_user_roles($user_id){
 		require_once( ABSPATH . "wp-includes/pluggable.php" );
 	}
 	$user_meta=get_userdata($user_id);
-	return $user_meta->roles;
+	if(isset($user_meta->roles)){
+		return $user_meta->roles;
+	}
+	return [];
 }
 
 
@@ -152,10 +155,22 @@ function erpc_get_caps_for_role( $role = '' ) {
 			];
 			break;
 		case erpca_get_general_manager_role():
+			error_log('adding for role '.$role .' '.erpca_get_general_manager_role());
 			$caps = [
+				'erp_leave_manage'         => true
 			];
 			break;
 	}
 
 	return apply_filters( 'erp_hr_get_caps_for_role', $caps, $role );
 }
+
+
+function add_theme_caps() {
+	// gets the author role
+	$role = get_role( erpca_get_general_manager_role() );
+	// This only works, because it accesses the class instance.
+	// would allow the author to edit others' posts for current theme only
+	$role->add_cap( 'erp_leave_manage' );
+}
+add_action( 'admin_init', 'add_theme_caps');

@@ -39,15 +39,13 @@ if ( !defined( 'ABSPATH' ) ) exit;
 class ERP_Custom_Agents {
 
 	public $version = '1.0.0';
-
-	public $dependency_plugins = [];
-
 	
 	/**
 	 * Sets up our plugin
 	 * @since  0.1.0
 	 */
 	public function __construct() {
+		error_log('custom plugin main file called');
 		register_activation_hook( __FILE__, array( $this, 'activate' ) );
 		register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
 		add_action( 'init', [ $this, 'localization_setup' ] );
@@ -134,22 +132,27 @@ class ERP_Custom_Agents {
 	 * @param  string $filename Name of the file to be included
 	 */
 	public function includes( ) {
+		error_log('custom include');
 		require ERPCA_INCLUDES .'/functions.php';
 		require ERPCA_INCLUDES .'/add-roles.php';
 		require ERPCA_INCLUDES .'/class-user-update.php';
 		require_once( ABSPATH . "wp-includes/pluggable.php" );
-		if(is_user_logged_in()){
-			$roles = erpc_get_user_roles(get_current_user_id());
-			$custom_roles = [erpca_get_leave_agent_role(),erpca_get_general_manager_role(), erp_hr_get_manager_role()];
 
-			if((count(array_intersect($custom_roles, $roles)) > 0) && (!in_array('administrator', $roles))){
-				require ERPCA_INCLUDES .'/leave-functions.php';
-				require ERPCA_INCLUDES .'/class-leave-request-list-table.php';
-				require ERPCA_MODULES .'/class-leave.php';
-			}
+		require_once ERPCA_INCLUDES .'/leave-functions.php';
 
 
+
+		$user_id = get_current_user_id();
+		if(is_user_logged_in() & (erpca_user_is_leave_agent($user_id) || erpca_user_is_hrm($user_id) || erpca_user_is_gm($user_id))){
+//			wp_die(var_dump(erpca_get_user_roles(get_current_user_id())));
+//			wp_die(var_dump(get_user_by('id', get_current_user_id())));
+//			error_log('custom include leave');
+			//leave
+			//require ERPCA_INCLUDES .'/leave-functions.php';
+			require ERPCA_MODULES .'/class-leave.php';
+			require ERPCA_VIEWS .'/leave/class-leave-request-list-table.php';
 		}
+
 	}
 
 	

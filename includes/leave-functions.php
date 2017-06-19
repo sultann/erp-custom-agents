@@ -1,8 +1,12 @@
 <?php
+/*============================================*/
+//THE FILES IS ONLY FOR LEAVE FUNCTIONS
+/*============================================*/
 /**
  *  Get all the leave request depending on the user roles
  * @return array
  */
+error_log('leave functions file was called');
 function erpc_hr_leave_get_requests_count() {
 	global $wpdb;
 
@@ -52,7 +56,8 @@ function erpa_hr_leave_request_get_statuses( $status = false ) {
 	$roles = erpc_get_user_roles(get_current_user_id());
 	var_dump($roles);
 	$statuses = array(
-		'all' => __( 'All', 'erp' )
+		'all' => __( 'All', 'erp' ),
+		'1' => __( 'Approved', 'erp' )
 	);
 
 	if(in_array(erpca_get_leave_agent_role(), $roles)){
@@ -79,10 +84,13 @@ function erpa_hr_leave_request_get_statuses( $status = false ) {
 function erpa_get_leave_request_codes_by_role($single = false){
 	$roles = erpc_get_user_roles(get_current_user_id());
 	$status_codes = [];
+	$status_codes[] = '1';
 	if(in_array(erpca_get_leave_agent_role(), $roles)){
 		$status_codes[] = '11';
 		$status_codes[] = '3';
+		$status_codes[] = '2';
 	}elseif(in_array(erp_hr_get_manager_role(), $roles)){
+		$status_codes[] = '1';
 		$status_codes[] = '12';
 	}elseif(in_array(erpca_get_general_manager_role(), $roles)){
 		$status_codes[] = '13';
@@ -92,13 +100,6 @@ function erpa_get_leave_request_codes_by_role($single = false){
 		return array_pop($status_codes);
 	}
 	return $status_codes;
-}
-
-
-//add_action('erp_hr_leave_request_approved', 'erpc_update_leave_request_to_custom_status', 10,1);
-
-function erpc_update_leave_request_to_custom_status($request_id){
-	error_log('updated leave request '. $request_id);
 }
 
 
@@ -197,3 +198,105 @@ function erpc_hr_get_leave_requests( $args = array() ) {
 
 	return $requests;
 }
+
+function erpc_hr_leave_request_get_statuses($status){
+	if($status == 11){
+		return "Pending";
+	}elseif ($status ==12){
+		return "pending for HRM";
+	}elseif ($status==13){
+		return "pending for GM";
+	}else{
+		erp_hr_leave_request_get_statuses($status);
+	}
+}
+
+
+function erpc_hr_leave_request_get_pending_code($id){
+	$roles = erpc_get_user_roles($id);
+	$code = 2;
+	if(in_array(erpca_get_leave_agent_role(), $roles)){
+		$code = 11;
+	}elseif (in_array(erp_hr_get_manager_role(), $roles)){
+		$code = 12;
+	}elseif (in_array(erpca_get_general_manager_role(), $roles)){
+		$code = 13;
+	}
+
+	return $code;
+}
+
+function erpca_update_leave_request_status($id, $status_code){
+	$request = \WeDevs\ERP\HRM\Models\Leave_request::find( $id );
+	error_log('Got request for updating '. $request->id );
+	$request->status = $status_code;
+	$request->save();
+}
+/*============================================*/
+//ALL HOOKS & FILTERS
+/*============================================*/
+
+
+function erpc_update_leave_approve_to_custom_status($request_id){
+	$user_id =get_current_user_id();
+	if(erpca_user_is_leave_agent($user_id)){
+		erpca_update_leave_request_status($request_id, 12);
+	}elseif (erpca_user_is_hrm($user_id)){
+		erpca_update_leave_request_status($request_id, 13);
+	}else{
+		erpca_update_leave_request_status($request_id, 1);
+	}
+}
+add_action('erp_hr_leave_request_approved', 'erpc_update_leave_approve_to_custom_status', 10,1);
+
+/**
+ * Listen for leave request reject
+ * and change the status depending on who rejected
+ *
+ * @param $request_id
+ */
+function erpc_update_leave_reject_to_custom_status($request_id){
+	erpca_update_leave_request_status($request_id, 11);
+}
+add_action('erp_hr_leave_request_rejected', 'erpc_update_leave_reject_to_custom_status', 99,1);
+
+/**
+ * Listen for new leave request admin notification
+ * and send that to leave agent
+ *
+ * @param $recipients
+ *
+ * @return array
+ */
+function send_leave_request_email_to_leave_agent($recipients){
+	unset($recipients);
+	$users = get_users( ['role' => erpca_get_leave_agent_role()] );
+	$recipients = wp_list_pluck($users, 'user_email');
+	return $recipients;
+}
+add_action( 'erp_new_leave_request_notification_recipients', 'send_leave_request_email_to_leave_agent', 10,1 );
+
+/**
+ * Listen for new leave request and alter the status code to 11
+ * @param $request_id
+ */
+function create_leave_entry_action($request_id){
+	error_log('got in custom code leave request');
+	erpca_update_leave_request_status($request_id, 11);
+//
+//
+//	global $wpdb;
+//	$table = $wpdb->prefix . 'erpc_actions';
+//	$wpdb->insert( $table, array(
+//		'type' => 'leave_request',
+//		'type_id' => $request_id,
+//		'action' => 'create',
+//	),
+//		array(
+//			'%s',
+//			'%d',
+//			'%s'
+//		)
+//	);
+}
+add_action( 'erp_hr_leave_new', 'create_leave_entry_action', 10,1 );

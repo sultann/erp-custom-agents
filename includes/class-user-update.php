@@ -116,9 +116,10 @@ class ERPCA_User_Update{
 			<span class="description"><?php _e( 'Accounting Agent', 'erp' ); ?></span>
 		</label>
 		<label for="erp-general_manager">
-			<input type="checkbox" id="erp-general_manager" <?php echo $is_accounting_agent; ?> name="general_manager" value="<?php echo erpca_get_general_manager_role(); ?>">
+			<input type="checkbox" id="erp-general_manager" <?php echo $is_general_manager; ?> name="general_manager" value="<?php echo erpca_get_general_manager_role(); ?>">
 			<span class="description"><?php _e( 'General Manager', 'erp' ); ?></span>
 		</label>
+
 		<?php
 	}
 }

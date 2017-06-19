@@ -10,8 +10,9 @@
 class ERPC_Leave_Management {
 
 	public function __construct() {
-		add_action( 'admin_menu', array( $this, 'admin_menu' ), 999 );
-
+		add_action( 'admin_menu', array( $this, 'admin_menu' ), 10 );
+		//add_action('template_redirect', [$this, 'redirect_from_old_page'], 10);
+		add_action('admin_init', array($this, 'disallowed_admin_pages'));
 	}
 	/**
 	 * Add menu items
@@ -20,17 +21,25 @@ class ERPC_Leave_Management {
 	 */
 	public function admin_menu() {
 		remove_menu_page('erp-leave');
+		remove_submenu_page('erp-leave', 'admin.php?page=erp-leave');
 		add_menu_page( __( 'Leave Management', 'erp' ), __( 'Leave', 'erp' ), 'erp_leave_manage', 'erp-leave-extended', array( $this, 'empty_page' ), 'dashicons-arrow-right-alt', null );
 
 		$leave_request = add_submenu_page( 'erp-leave-extended', __( 'Requests', 'erp' ), __( 'Requests', 'erp' ), 'erp_leave_manage', 'erp-leave-extended', array( $this, 'leave_requests' ) );
 		add_submenu_page( 'erp-leave-extended', __( 'Leave Entitlements', 'erp' ), __( 'Leave Entitlements', 'erp' ), 'erp_leave_manage', 'erp-leave-extended-assign', array( $this, 'leave_entitilements' ) );
 		add_submenu_page( 'erp-leave-extended', __( 'Holidays', 'erp' ), __( 'Holidays', 'erp' ), 'erp_leave_manage', 'erp-holiday-assign', array( $this, 'holiday_page' ) );
-		add_submenu_page( 'erp-leave-extended', __( 'Policies', 'erp' ), __( 'Policies', 'erp' ), 'erp_leave_manage', 'erp-leave-extended-policies', array( $this, 'leave_policy_page' ) );
+		add_submenu_page( 'erp-leave-extended', __( 'Policies', 'erp' ), __( 'Policies', 'erp' ), 'erp_leave_manage', 'erp-leave-policies', array( $this, 'leave_policy_page' ) );
 	}
 
 
 
-
+	public function disallowed_admin_pages(){
+		global $pagenow;
+		/* Check current admin page. */
+		if($pagenow == 'admin.php' && isset($_GET['page']) && $_GET['page'] == 'erp-leave'){
+			wp_redirect(admin_url('/admin.php?page=erp-leave-extended', 'http'), 301);
+			exit;
+		}
+	}
 
 	/**
 	 * Render the leave policy page
